@@ -1,2 +1,2 @@
 # upscaler
-Simple upscaling programme with gui in Python
+Simple up-scaling programme with gui in Python
