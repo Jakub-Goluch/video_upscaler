@@ -11,16 +11,25 @@ def CPUprocessing(video):
         success, frame = video.read()
 
         if success:
-            frame_upscaled = cv2.resize(frame, (1920, 1080), interpolation=cv2.INTER_CUBIC)
+            frame_final = cv2.resize(frame, (1920, 1080), interpolation=cv2.INTER_CUBIC)
+            frame = cv2.resize(frame, (1920, 1080), interpolation=cv2.INTER_NEAREST)
             # frame_denoised = cv2.fastNlMeansDenoisingColored(frame_upscaled, None, 5, 5, 7, 15)
-            frame_denoised = cv2.bilateralFilter(frame_upscaled, 9, 100, 100)
-            frame_sharpened = cv2.filter2D(frame_denoised, -1, kernel)
-            #result_video.write(frame_sharpened)
-            cv2.imshow('Video', frame_sharpened)
+
+            #frame_final = cv2.filter2D(frame_final, -1, kernel)
+            #frame_final = cv2.filter2D(frame_final, -1, kernel)
+            frame_final = cv2.bilateralFilter(frame_final, 10, 100, 100)
+            frame_final = cv2.filter2D(frame_final, -1, kernel)
+            #frame_final = cv2.filter2D(frame_final, -1, kernel)
+            result_video.write(frame_final)
+            # cv2.imshow('Upscaled', frame_final)
+            # cv2.imshow('Original', frame)
+            both_images = np.concatenate((frame, frame_final), axis=1)
+            both_images = cv2.resize(both_images, (1920, 1080), interpolation=cv2.INTER_NEAREST)
+            cv2.imshow('Video', both_images)
         else:
             break
 
-        cv2.waitKey(25)
+        cv2.waitKey(int(video.get(cv2.CAP_PROP_FPS)))
 
     result_video.release()
 
