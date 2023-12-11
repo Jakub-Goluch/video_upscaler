@@ -3,6 +3,8 @@ from tkinter import filedialog
 from os import getcwd
 import numpy as np
 
+""""https://learnopencv.com/super-resolution-in-opencv/"""
+
 def CPUprocessing(video):
     kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])  # for sharpening
     result_video = cv2.VideoWriter('rezultat.mp4', cv2.VideoWriter_fourcc(*'mp4v'), video.get(cv2.CAP_PROP_FPS), (1920,1080))
@@ -35,6 +37,16 @@ def CPUprocessing(video):
 
     counter = 0 # for refreshing reference frame for optical flow
 
+    # setting enhancing model
+    sr = cv2.dnn_superres.DnnSuperResImpl_create()
+
+    path = "FSRCNN_x3.pb"
+
+    sr.readModel(path)
+
+    sr.setModel("fsrcnn", 3)
+    print("model loaded")
+
     while video.isOpened():
         success, frame = video.read()
 
@@ -60,6 +72,29 @@ def CPUprocessing(video):
             if p1 is not None:
                 good_new = p1[st == 1]
                 good_old = p0[st == 1]
+
+            # print(good_new.shape)
+
+            # find the bound box for better image enhancement
+            offset = 20
+            x1 = int(np.min(good_new[:, 0])) - offset
+            x2 = int(np.max(good_new[:, 0])) + offset
+            y1 = int(np.min(good_new[:, 1])) - offset
+            y2 = int(np.max(good_new[:, 1])) + offset
+
+            image_to_supersample = frame[x1:x2, y1:y2]
+            image_to_supersample = sr.upsample(image_to_supersample)
+            print("frame supersampled")
+            shape = (frame_final[x1:x2, y1:y2].shape[1], frame_final[x1:x2, y1:y2].shape[0])
+            image_to_supersample = cv2.resize(image_to_supersample, shape, interpolation=cv2.INTER_LANCZOS4)
+            # cv2.imshow('image', image_to_supersample)
+            print(frame_final[x1:x2, y1:y2].shape[:2], image_to_supersample.shape[:2])
+            print("frame resized")
+
+            # replacing the better interpolated image to the final frame
+            frame_final[x1:x2, y1:y2] = image_to_supersample
+            print("frame replaced")
+
             # draw the tracks
             for i, (new, old) in enumerate(zip(good_new, good_old)):
                 a, b = new.ravel()
@@ -70,13 +105,15 @@ def CPUprocessing(video):
 
             # showing both original and upscaled frames as one
             both_images = np.concatenate((frame, frame_final), axis=1)
-            both_images = cv2.resize(both_images, (1920, 1080), interpolation=cv2.INTER_NEAREST)
+            both_images = cv2.resize(both_images, (1920, 1080), interpolation=cv2.INTER_NEAREST_EXACT)
             cv2.imshow('Video', both_images)
             # Now update the previous frame and previous points
             old_gray = frame_gray.copy()
             p0 = good_new.reshape(-1, 1, 2)
             result_video.write(both_images)
-            cv2.waitKey(33)
+            key = cv2.waitKey(33) & 0xFF
+            if key == 27:
+                break
         else:
             break
 
