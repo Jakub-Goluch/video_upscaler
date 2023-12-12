@@ -7,7 +7,7 @@ import numpy as np
 
 def CPUprocessing(video):
     kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])  # for sharpening
-    result_video = cv2.VideoWriter('rezultat.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 24, (1920,1080))
+    result_video = cv2.VideoWriter('rezultat.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 12, (1920,1080))
 
     # setting up optical flow vector params
 
@@ -55,7 +55,7 @@ def CPUprocessing(video):
         if success:
             # interpolation
             frame_final = cv2.resize(frame, (1920, 1080), interpolation=cv2.INTER_CUBIC)
-            frame = cv2.resize(frame, (1920, 1080), interpolation=cv2.INTER_NEAREST_EXACT)
+            frame = cv2.resize(frame, (1920, 1080), interpolation=cv2.INTER_NEAREST)
             # denoising
             frame_final = cv2.bilateralFilter(frame_final, 10, 100, 100)
             # sharpening
@@ -92,7 +92,7 @@ def CPUprocessing(video):
             y1 = int(np.min(good_new[:, 1])) - offset
             y2 = int(np.max(good_new[:, 1])) + offset
 
-            image_to_supersample = frame[x1:x2, y1:y2]
+            image_to_supersample = frame_final[x1:x2, y1:y2]
             image_to_supersample = sr.upsample(image_to_supersample)
             shape = (frame_final[x1:x2, y1:y2].shape[1], frame_final[x1:x2, y1:y2].shape[0])
             image_to_supersample = cv2.resize(image_to_supersample, shape, interpolation=cv2.INTER_LANCZOS4)
@@ -101,7 +101,7 @@ def CPUprocessing(video):
             # replacing the better interpolated image to the final frame
             frame_final[x1:x2, y1:y2] = image_to_supersample
 
-            # draw the tracks
+            # draw the tracks cumulatively
             # for i, (new, old) in enumerate(zip(good_new, good_old)):
             #     a, b = new.ravel()
             #     c, d = old.ravel()
@@ -114,14 +114,12 @@ def CPUprocessing(video):
 
             for i in lines_to_draw:
                 mask = cv2.line(mask, (int(i[0]), int(i[1])), (int(i[2]), int(i[3])), (0, 255, 0), 2)
-                # frame_final = cv2.circle(frame_final, (int(i[0]), int(i[1])), 5, (0, 255, 0), -1)
             frame_final = cv2.add(frame_final, mask)
-
 
             # showing both original and upscaled frames as one
             both_images = np.concatenate((frame, frame_final), axis=1)
             both_images = cv2.resize(both_images, (1920, 1080), interpolation=cv2.INTER_NEAREST_EXACT)
-            # cv2.imshow('Video', both_images)
+            cv2.imshow('Video', both_images)
             # Now update the previous frame and previous points
             old_gray = frame_gray.copy()
             p0 = good_new.reshape(-1, 1, 2)
