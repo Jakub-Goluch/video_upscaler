@@ -7,7 +7,7 @@ import numpy as np
 
 def CPUprocessing(video):
     kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])  # for sharpening
-    result_video = cv2.VideoWriter('rezultat.mp4', cv2.VideoWriter_fourcc(*'mp4v'), video.get(cv2.CAP_PROP_FPS), (1920,1080))
+    result_video = cv2.VideoWriter('rezultat.mp4', cv2.VideoWriter_fourcc(*'mp4v'), 24, (1920,1080))
 
     # setting up optical flow vector params
 
@@ -37,6 +37,8 @@ def CPUprocessing(video):
 
     counter = 0 # for refreshing reference frame for optical flow
 
+    lines_to_draw = [] # for drawing lines
+
     # setting enhancing model
     sr = cv2.dnn_superres.DnnSuperResImpl_create()
 
@@ -60,7 +62,7 @@ def CPUprocessing(video):
             frame_final = cv2.filter2D(frame_final, -1, kernel)
 
             counter += 1
-            if counter == 30:
+            if counter == 10:
                 counter = 1
                 old_gray = cv2.cvtColor(frame_final, cv2.COLOR_BGR2GRAY)
                 p0 = cv2.goodFeaturesToTrack(old_gray, mask=None, **feature_params)
@@ -73,6 +75,14 @@ def CPUprocessing(video):
                 good_new = p1[st == 1]
                 good_old = p0[st == 1]
 
+            for i in lines_to_draw:
+                if i[4] >= 30:
+                    lines_to_draw.remove(i)
+                else:
+                    i[4] += 1
+
+            for i in range(len(good_new)):
+                lines_to_draw.append([good_new[i][0], good_new[i][1], good_old[i][0], good_old[i][1] , 0]) # lines to draw with their lifetime counter
             # print(good_new.shape)
 
             # find the bound box for better image enhancement
@@ -84,29 +94,34 @@ def CPUprocessing(video):
 
             image_to_supersample = frame[x1:x2, y1:y2]
             image_to_supersample = sr.upsample(image_to_supersample)
-            print("frame supersampled")
             shape = (frame_final[x1:x2, y1:y2].shape[1], frame_final[x1:x2, y1:y2].shape[0])
             image_to_supersample = cv2.resize(image_to_supersample, shape, interpolation=cv2.INTER_LANCZOS4)
             # cv2.imshow('image', image_to_supersample)
-            print(frame_final[x1:x2, y1:y2].shape[:2], image_to_supersample.shape[:2])
-            print("frame resized")
 
             # replacing the better interpolated image to the final frame
             frame_final[x1:x2, y1:y2] = image_to_supersample
-            print("frame replaced")
 
             # draw the tracks
-            for i, (new, old) in enumerate(zip(good_new, good_old)):
-                a, b = new.ravel()
-                c, d = old.ravel()
-                mask = cv2.line(mask, (int(a), int(b)), (int(c), int(d)), color[i].tolist(), 2)
-                frame_final = cv2.circle(frame_final, (int(a), int(b)), 5, color[i].tolist(), -1)
+            # for i, (new, old) in enumerate(zip(good_new, good_old)):
+            #     a, b = new.ravel()
+            #     c, d = old.ravel()
+            #     mask = cv2.line(mask, (int(a), int(b)), (int(c), int(d)), color[i].tolist(), 2)
+            #     frame_final = cv2.circle(frame_final, (int(a), int(b)), 5, color[i].tolist(), -1)
+            # frame_final = cv2.add(frame_final, mask)
+
+            # draw the tracks but they dissapear after a while
+            mask = np.zeros_like(frame_final)
+
+            for i in lines_to_draw:
+                mask = cv2.line(mask, (int(i[0]), int(i[1])), (int(i[2]), int(i[3])), (0, 255, 0), 2)
+                # frame_final = cv2.circle(frame_final, (int(i[0]), int(i[1])), 5, (0, 255, 0), -1)
             frame_final = cv2.add(frame_final, mask)
+
 
             # showing both original and upscaled frames as one
             both_images = np.concatenate((frame, frame_final), axis=1)
             both_images = cv2.resize(both_images, (1920, 1080), interpolation=cv2.INTER_NEAREST_EXACT)
-            cv2.imshow('Video', both_images)
+            # cv2.imshow('Video', both_images)
             # Now update the previous frame and previous points
             old_gray = frame_gray.copy()
             p0 = good_new.reshape(-1, 1, 2)
