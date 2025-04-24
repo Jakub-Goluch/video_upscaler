@@ -1,4 +1,4 @@
-# upscaler
+# Video upscaler
 Context:
 The aim of the project was to create a video upscaler that would create new pixels in a mp4 file without usage of any generative AI. We aimed to do this solemnly with the usage of data interpolation, different filters like Bilateral Filter and optical flow.
 
