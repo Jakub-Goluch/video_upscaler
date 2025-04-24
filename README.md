@@ -1,3 +1,3 @@
 # upscaler
 Simple up-scaling programme with gui in Python
-![image](https://github.com/user-attachments/assets/3fc1a882-9597-4edc-9e17-f22a793a57e4)
+(https://github.com/user-attachments/assets/3fc1a882-9597-4edc-9e17-f22a793a57e4)
